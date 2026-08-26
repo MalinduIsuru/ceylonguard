@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
-
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
+import { SignInButton, SignUpButton } from "@clerk/nextjs";
 
 const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
@@ -32,17 +32,20 @@ const Navbar = () => {
         </Link>
 
         <div className="flex items-center gap-2">
-          <Button
-            asChild
-            variant="ghost"
-            size="lg"
-            className="hidden sm:inline-flex"
-          >
-            <Link href="/login">Log In</Link>
-          </Button>
-          <Button variant="hero" size="lg" className="hidden sm:inline-flex">
-            Get Started
-          </Button>
+          <SignInButton mode="modal">
+            <Button
+              variant="ghost"
+              size="lg"
+              className="hidden sm:inline-flex"
+            >
+              Log In
+            </Button>
+          </SignInButton>
+          <SignUpButton mode="modal">
+            <Button variant="hero" size="lg" className="hidden sm:inline-flex">
+              Get Started
+            </Button>
+          </SignUpButton>
           <button
             type="button"
             aria-label={openMenu ? "Close menu" : "Open menu"}
@@ -58,12 +61,16 @@ const Navbar = () => {
         <div className="border-t border-border bg-background px-5 pb-6 pt-3 xl:hidden">
           <div className="mt-4 grid gap-2">
             <div className="flex justify-center"></div>
-            <Button asChild variant="leafOutline" size="xl">
-              <Link href="/login">Log In</Link>
-            </Button>
-            <Button variant="hero" size="xl">
-              Get Started
-            </Button>
+            <SignInButton mode="modal">
+              <Button variant="leafOutline" size="xl">
+                Log In
+              </Button>
+            </SignInButton>
+            <SignUpButton mode="modal">
+              <Button variant="hero" size="xl">
+                Get Started
+              </Button>
+            </SignUpButton>
           </div>
         </div>
       ) : null}
