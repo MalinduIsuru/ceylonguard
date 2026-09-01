@@ -88,13 +88,23 @@ export type FarmerContext = {
 };
 
 /**
- * Resolves the signed-in farmer, or the reason they cannot post listings.
+ * Wording for the two ways the gate can close, so callers that are not the
+ * publish form can say what the visitor was actually trying to do.
+ */
+export type FarmerGateMessages = {
+  notOnboarded?: string;
+  notFarmer?: string;
+};
+
+/**
+ * Resolves the signed-in farmer, or the reason they cannot act as one.
  *
  * The role is read from the database rather than the Clerk session so a stale
- * token cannot let a factory account publish harvests.
+ * token cannot let a factory account publish harvests or answer offers.
  */
 export async function requireFarmer(
   clerkId: string,
+  messages: FarmerGateMessages = {},
 ): Promise<
   { ok: true; farmer: FarmerContext } | { ok: false; status: number; error: string }
 > {
@@ -106,7 +116,9 @@ export async function requireFarmer(
     return {
       ok: false,
       status: 403,
-      error: "Finish setting up your account before posting a listing.",
+      error:
+        messages.notOnboarded ??
+        "Finish setting up your account before posting a listing.",
     };
   }
 
@@ -114,7 +126,7 @@ export async function requireFarmer(
     return {
       ok: false,
       status: 403,
-      error: "Only farmer accounts can post harvest listings.",
+      error: messages.notFarmer ?? "Only farmer accounts can post harvest listings.",
     };
   }
 

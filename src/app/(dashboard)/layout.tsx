@@ -4,6 +4,7 @@ import { useUser } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
 import React, { useState } from "react";
 import DashboardNav from "@/components/dashboard/DashboardNav";
+import PresenceBeacon from "@/components/dashboard/PresenceBeacon";
 
 const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const { user, isLoaded } = useUser();
@@ -20,6 +21,10 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <div className="flex h-screen bg-gray-50">
+      {/* Announces this account as reachable for as long as any dashboard
+          page is open, which is what the online dots in chat read. */}
+      <PresenceBeacon />
+
       <div className="fixed top-0 left-0 right-0 z-30 lg:hidden bg-card border-b border-gray-200 h-14 flex items-center px-4">
         <button
           className="p-2 rounded-lg hover:bg-gray-100 transition-colors"

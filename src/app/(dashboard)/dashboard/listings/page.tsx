@@ -9,6 +9,7 @@ import {
   RefreshCw,
   Scale,
   ShieldCheck,
+  Sprout,
   Store,
   Trash2,
 } from "lucide-react";
@@ -254,6 +255,9 @@ const ListingsPage = () => {
   return (
     <div className="grid gap-6">
       <header>
+        <span className="eyebrow">
+          <Sprout className="size-3.5" /> Farmer Portal · Harvest Marketplace
+        </span>
         <h1 className="mt-4 font-display text-3xl font-bold text-leaf-strong sm:text-4xl">
           Post a Listing
         </h1>

@@ -11,11 +11,7 @@ const DashboardPage = async () => {
   }
 
   if (user.role === "farmer") {
-    return (
-      <FarmerDashboard
-      // userName={user.firstName ?? undefined}
-      />
-    );
+    return <FarmerDashboard userName={user.firstName ?? undefined} />;
   }
 
   if (user.role === "factory") {

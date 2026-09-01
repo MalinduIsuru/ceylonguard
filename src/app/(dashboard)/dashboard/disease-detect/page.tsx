@@ -7,6 +7,7 @@ import {
   ScanLine,
   ShieldCheck,
   Sparkles,
+  Sprout,
   TriangleAlert,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -219,6 +220,9 @@ function ScanPage() {
   return (
     <div className="grid gap-6">
       <header>
+        <span className="eyebrow">
+          <Sprout className="size-3.5" /> Farmer Portal · AI Disease Detection
+        </span>
         <h1 className="mt-4 font-display text-3xl font-bold text-leaf-strong sm:text-4xl">
           AI Disease Detection
         </h1>
@@ -236,15 +240,20 @@ function ScanPage() {
         className="gap-6"
       >
         <TabsList className="min-h-11 w-full rounded-2xl bg-secondary p-1 sm:w-fit">
-          <TabsTrigger value="scan" className="h-full flex-1 gap-2 rounded-xl px-4 text-sm font-semibold data-active:bg-card data-active:text-leaf-strong data-active:shadow-sm sm:flex-none sm:px-6">
+          <TabsTrigger
+            value="scan"
+            className="h-full flex-1 gap-2 rounded-xl px-4 text-sm font-semibold data-active:bg-card data-active:text-leaf-strong data-active:shadow-sm sm:flex-none sm:px-6"
+          >
             <ScanLine className="size-4" />
             New Scan
           </TabsTrigger>
 
-          <TabsTrigger value="history" className="h-full flex-1 gap-2 rounded-xl px-4 text-sm font-semibold data-active:bg-card data-active:text-leaf-strong data-active:shadow-sm sm:flex-none sm:px-6">
+          <TabsTrigger
+            value="history"
+            className="h-full flex-1 gap-2 rounded-xl px-4 text-sm font-semibold data-active:bg-card data-active:text-leaf-strong data-active:shadow-sm sm:flex-none sm:px-6"
+          >
             <History className="size-4" />
             Scan History
-
             {historyCount !== null && historyCount > 0 && (
               <span className="rounded-full bg-leaf-soft px-1.5 py-0.5 text-[0.65rem] font-bold tabular-nums text-leaf-strong">
                 {historyCount}
@@ -308,8 +317,8 @@ function ScanPage() {
                   <p className="text-xs leading-relaxed text-amber-900">
                     {result.saveError ??
                       "This result could not be added to your scan history."}{" "}
-                    The diagnosis below is still valid — take a screenshot if you
-                    need to keep it.
+                    The diagnosis below is still valid — take a screenshot if
+                    you need to keep it.
                   </p>
                 </div>
               )}
@@ -331,7 +340,9 @@ function ScanPage() {
                       AI Disease Free Stamp
                     </p>
 
-                    {healthy && <Sparkles className="ml-auto size-4 opacity-80" />}
+                    {healthy && (
+                      <Sparkles className="ml-auto size-4 opacity-80" />
+                    )}
                   </div>
 
                   <p
@@ -346,7 +357,9 @@ function ScanPage() {
 
                   {healthy && (
                     <Button asChild variant="soft" size="lg" className="mt-4">
-                      <Link href="/dashboard/listings">Post a Harvest Listing</Link>
+                      <Link href="/dashboard/listings">
+                        Post a Harvest Listing
+                      </Link>
                     </Button>
                   )}
                 </div>

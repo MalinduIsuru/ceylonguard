@@ -15,7 +15,11 @@ import {
   X,
 } from "lucide-react";
 import type { ReactNode } from "react";
+import { useUnreadChatCount } from "@/hooks/use-unread-chat";
 import { Logo } from "../Logo";
+
+/** The one link that carries a live count. */
+const CHAT_HREF = "/dashboard/chat";
 
 interface DashboardNavProps {
   role: "farmer" | "factory";
@@ -39,6 +43,7 @@ export default function DashboardNav({
 }: DashboardNavProps) {
   const pathname = usePathname();
   const { signOut } = useClerk();
+  const unreadMessages = useUnreadChatCount();
 
   const farmerLinks: NavLink[] = [
     {
@@ -164,9 +169,21 @@ export default function DashboardNav({
                 <span className="truncate text-sm font-medium">
                   {link.label}
                 </span>
-                {isActive && (
+
+                {link.href === CHAT_HREF && unreadMessages > 0 ? (
+                  <span
+                    className={`ml-auto grid min-w-5 shrink-0 place-items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                      isActive
+                        ? "bg-white text-leaf-strong"
+                        : "gradient-leaf text-white"
+                    }`}
+                    aria-label={`${unreadMessages} unread messages`}
+                  >
+                    {unreadMessages > 99 ? "99+" : unreadMessages}
+                  </span>
+                ) : isActive ? (
                   <span className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-white/80" />
-                )}
+                ) : null}
               </Link>
             </div>
           );

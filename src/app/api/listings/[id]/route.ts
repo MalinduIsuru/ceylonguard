@@ -11,6 +11,7 @@ import type {
 import { requireFarmer, toListingItem } from "@/lib/listings.server";
 import connectDB from "@/lib/mongodb";
 import Listing, { type IListing } from "@/lib/models/Listing";
+import Offer from "@/lib/models/Offer";
 
 /**
  * One of the farmer's own listings.
@@ -18,6 +19,10 @@ import Listing, { type IListing } from "@/lib/models/Listing";
  * PATCH moves it between active, sold and withdrawn; DELETE removes it for
  * good. Both scope the query by `clerkId` as well as `_id`, so a guessed id
  * from another farmer's account reads as "not found" rather than acting on it.
+ *
+ * Both also close any offer still standing on a harvest that has stopped
+ * trading, so the farmer's inbox never shows a bid that can no longer be
+ * accepted and the mill that sent it stops waiting on an answer.
  */
 
 export const runtime = "nodejs";
@@ -101,6 +106,15 @@ export async function PATCH(
 
     await listing.save();
 
+    // Accepting an offer closes the rivals itself; this is the same tidy-up
+    // for the farmer taking the harvest off the market by hand.
+    if (status === "sold" || status === "withdrawn") {
+      await Offer.updateMany(
+        { listing: listing._id, status: "pending" },
+        { $set: { status: "declined" } },
+      );
+    }
+
     const body: UpdateListingSuccess = {
       ok: true,
       listing: toListingItem(listing.toObject() as IListing),
@@ -149,6 +163,13 @@ export async function DELETE(
     }).lean<IListing | null>();
 
     if (!deleted) return fail(404, NOT_FOUND);
+
+    // The offers outlive the listing they were sent on — they are the record
+    // of a trade — but none of them is still answerable.
+    await Offer.updateMany(
+      { listing: deleted._id, status: "pending" },
+      { $set: { status: "declined" } },
+    );
 
     const body: DeleteListingSuccess = { ok: true, id };
 
