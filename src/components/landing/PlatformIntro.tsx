@@ -13,15 +13,15 @@ const PlatformIntro = () => {
     },
     {
       icon: ShieldCheck,
-      title: "Disease Free Verification",
+      title: "Treatment Guidance",
       description:
-        "Healthy leaves receive an AI Disease Free verification that allows farmers to create marketplace listings.",
+        "Each diagnosis comes with the symptoms behind it and a treatment plan for the affected block.",
     },
     {
       icon: Tag,
       title: "Direct Buyer Offers",
       description:
-        "Factory managers browse verified harvest listings and send price offers straight to the farmer.",
+        "Factory managers browse harvest listings and send price offers straight to the farmer.",
     },
     {
       icon: Store,
@@ -38,7 +38,7 @@ const PlatformIntro = () => {
       <SectionHeading
         eyebrow="One Platform for Better Tea Agriculture"
         title="From Leaf Health to Factory Connection"
-        description="CeylonGuard brings crop health assessment and agricultural trading together in one digital platform, so a healthy harvest becomes a verified, sellable harvest in a few simple steps."
+        description="CeylonGuard brings crop health assessment and agricultural trading together in one digital platform, so a healthy harvest becomes a sellable harvest in a few simple steps."
       />
       <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {features.map((feature) => (

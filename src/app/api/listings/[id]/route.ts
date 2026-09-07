@@ -2,11 +2,14 @@ import { auth } from "@clerk/nextjs/server";
 import { isValidObjectId } from "mongoose";
 import { NextResponse } from "next/server";
 
-import type {
-  DeleteListingSuccess,
-  ListingFailure,
-  ListingStatus,
-  UpdateListingSuccess,
+import {
+  toDayString,
+  validateListingInput,
+  type DeleteListingSuccess,
+  type ListingFailure,
+  type ListingStatus,
+  type UpdateListingInput,
+  type UpdateListingSuccess,
 } from "@/lib/listings";
 import { requireFarmer, toListingItem } from "@/lib/listings.server";
 import connectDB from "@/lib/mongodb";
@@ -16,9 +19,10 @@ import Offer from "@/lib/models/Offer";
 /**
  * One of the farmer's own listings.
  *
- * PATCH moves it between active, sold and withdrawn; DELETE removes it for
- * good. Both scope the query by `clerkId` as well as `_id`, so a guessed id
- * from another farmer's account reads as "not found" rather than acting on it.
+ * PATCH edits the harvest details, moves the listing between active, sold and
+ * withdrawn, or both in one request; DELETE removes it for good. Both scope
+ * the query by `clerkId` as well as `_id`, so a guessed id from another
+ * farmer's account reads as "not found" rather than acting on it.
  *
  * Both also close any offer still standing on a harvest that has stopped
  * trading, so the farmer's inbox never shows a bid that can no longer be
@@ -29,6 +33,14 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const STATUSES: ListingStatus[] = ["active", "sold", "withdrawn"];
+
+/** The harvest details a farmer may correct after publishing. */
+const EDITABLE = [
+  "weightKg",
+  "pricePerKg",
+  "district",
+  "harvestDate",
+] as const;
 
 function fail(status: number, body: ListingFailure) {
   return NextResponse.json(body, { status });
@@ -56,20 +68,34 @@ export async function PATCH(
 
   if (!isValidObjectId(id)) return fail(404, NOT_FOUND);
 
-  let payload: { status?: unknown };
+  let payload: UpdateListingInput;
 
   try {
-    payload = (await request.json()) as { status?: unknown };
+    payload = (await request.json()) as UpdateListingInput;
   } catch {
     return fail(400, { ok: false, error: "The request could not be read." });
   }
 
-  const status = payload.status;
+  const { status } = payload;
 
-  if (typeof status !== "string" || !STATUSES.includes(status as ListingStatus)) {
+  if (
+    status !== undefined &&
+    (typeof status !== "string" || !STATUSES.includes(status as ListingStatus))
+  ) {
     return fail(422, {
       ok: false,
       error: "A listing can only be set to active, sold or withdrawn.",
+    });
+  }
+
+  // An edit is any harvest field the client bothered to send; the rest are
+  // filled in from the stored row below, so a one-field correction is enough.
+  const edited = EDITABLE.some((field) => payload[field] !== undefined);
+
+  if (status === undefined && !edited) {
+    return fail(422, {
+      ok: false,
+      error: "There was nothing to change on this listing.",
     });
   }
 
@@ -86,22 +112,35 @@ export async function PATCH(
 
     if (!listing) return fail(404, NOT_FOUND);
 
-    listing.status = status as ListingStatus;
+    if (edited) {
+      const currentHarvestDate = toDayString(new Date(listing.harvestDate));
 
-    // Withdrawing hands the stamp back, so re-opening a listing has to check
-    // that its scan was not spent on another harvest in the meantime.
-    if (status === "active" && listing.scan) {
-      const taken = await Listing.exists({
-        _id: { $ne: listing._id },
-        clerkId: userId,
-        scan: listing.scan,
-        status: { $ne: "withdrawn" },
-      });
+      const validated = validateListingInput(
+        {
+          weightKg: payload.weightKg ?? listing.weightKg,
+          pricePerKg: payload.pricePerKg ?? listing.pricePerKg,
+          district: payload.district ?? listing.district,
+          harvestDate: payload.harvestDate ?? currentHarvestDate,
+        },
+        { currentHarvestDate },
+      );
 
-      if (taken) {
-        listing.scan = undefined;
-        listing.verification = undefined;
+      if (!validated.ok) {
+        return fail(422, {
+          ok: false,
+          error: "Some details need fixing before this listing can be saved.",
+          fieldErrors: validated.errors,
+        });
       }
+
+      listing.weightKg = validated.value.weightKg;
+      listing.pricePerKg = validated.value.pricePerKg;
+      listing.district = validated.value.district;
+      listing.harvestDate = validated.value.harvestDay;
+    }
+
+    if (status !== undefined) {
+      listing.status = status as ListingStatus;
     }
 
     await listing.save();

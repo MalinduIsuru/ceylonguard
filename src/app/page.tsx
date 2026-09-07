@@ -8,7 +8,6 @@ import HowItWorks from "@/components/landing/HowItWorks";
 import MarketplacePreview from "@/components/landing/MarketplacePreview";
 import PlatformIntro from "@/components/landing/PlatformIntro";
 import PortalsSection from "@/components/landing/PortalsSection";
-import VerificationHighlight from "@/components/landing/VerificationHighlight";
 import AIDetectionPreview from "@/components/landing/AIDetectionPreview";
 import { redirect } from "next/navigation";
 import { getCurrentUserWithRole } from "@/lib/auth";
@@ -24,7 +23,6 @@ const Home = async () => {
         <PlatformIntro />
         <HowItWorks />
         <AIDetectionPreview />
-        <VerificationHighlight />
         <PortalsSection />
         <MarketplacePreview />
         <BenefitsSection />

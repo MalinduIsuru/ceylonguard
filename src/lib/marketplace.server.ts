@@ -192,19 +192,6 @@ export function toMarketListing(
     district: listing.district,
     harvestDate: toDayString(new Date(listing.harvestDate)),
 
-    ...(listing.verification
-      ? {
-          verification: {
-            label: listing.verification.label,
-            confidence: listing.verification.confidence,
-            scannedAt: new Date(listing.verification.scannedAt).toISOString(),
-            ...(listing.verification.imageUrl
-              ? { imageUrl: listing.verification.imageUrl }
-              : {}),
-          },
-        }
-      : {}),
-
     createdAt: new Date(listing.createdAt).toISOString(),
   };
 }

@@ -2,14 +2,8 @@ import "server-only";
 
 import type { Types } from "mongoose";
 
-import {
-  STAMP_VALID_DAYS,
-  toDayString,
-  type AvailableStamp,
-  type ListingItem,
-} from "@/lib/listings";
-import Listing, { type IListing } from "@/lib/models/Listing";
-import Scan, { type IScan } from "@/lib/models/Scan";
+import { toDayString, type ListingItem } from "@/lib/listings";
+import { type IListing } from "@/lib/models/Listing";
 import User from "@/lib/models/User";
 
 /** Server-side pieces of the listings feature, kept out of the client bundle. */
@@ -24,60 +18,7 @@ export function toListingItem(listing: IListing): ListingItem {
     district: listing.district,
     harvestDate: toDayString(new Date(listing.harvestDate)),
     status: listing.status,
-    ...(listing.verification
-      ? {
-          verification: {
-            label: listing.verification.label,
-            confidence: listing.verification.confidence,
-            scannedAt: new Date(listing.verification.scannedAt).toISOString(),
-            ...(listing.verification.imageUrl
-              ? { imageUrl: listing.verification.imageUrl }
-              : {}),
-          },
-        }
-      : {}),
     createdAt: new Date(listing.createdAt).toISOString(),
-  };
-}
-
-/**
- * The healthy scan this farmer may still spend on a listing, or null.
- *
- * A scan counts when it is recent enough to say something about the leaf being
- * sold now, and is not already carrying an open listing. Withdrawing a listing
- * hands its scan back, which is why withdrawn rows are skipped here.
- */
-export async function resolveAvailableStamp(
-  clerkId: string,
-): Promise<{ scan: IScan; stamp: AvailableStamp } | null> {
-  const cutoff = new Date(Date.now() - STAMP_VALID_DAYS * 86_400_000);
-
-  const spent = (await Listing.distinct("scan", {
-    clerkId,
-    scan: { $exists: true },
-    status: { $ne: "withdrawn" },
-  })) as Types.ObjectId[];
-
-  const scan = await Scan.findOne({
-    clerkId,
-    isHealthy: true,
-    scannedAt: { $gte: cutoff },
-    ...(spent.length > 0 ? { _id: { $nin: spent } } : {}),
-  })
-    .sort({ scannedAt: -1 })
-    .lean<IScan | null>();
-
-  if (!scan) return null;
-
-  return {
-    scan,
-    stamp: {
-      scanId: String(scan._id),
-      label: scan.label,
-      confidence: scan.confidence,
-      scannedAt: new Date(scan.scannedAt).toISOString(),
-      ...(scan.imageUrl ? { imageUrl: scan.imageUrl } : {}),
-    },
   };
 }
 

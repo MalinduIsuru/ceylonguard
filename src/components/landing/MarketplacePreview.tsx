@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, MapPin, ShieldCheck, Star, Weight } from "lucide-react";
+import { CalendarDays, MapPin, Star, Weight } from "lucide-react";
 import { SectionHeading } from "@/components/landing/SectionHeading";
 import { Button } from "@/components/ui/button";
 
@@ -38,7 +38,7 @@ const MarketplacePreview = () => {
       <div className="mx-auto max-w-7xl px-5 lg:px-8">
         <SectionHeading
           eyebrow="Marketplace Preview"
-          title="Discover Verified Tea Harvests"
+          title="Discover Fresh Tea Harvests"
           description="A glimpse of the harvest listings factory managers browse after signing in."
         />
 
@@ -48,14 +48,9 @@ const MarketplacePreview = () => {
               key={listing.title}
               className="surface-card flex h-full flex-col p-6"
             >
-              <div className="flex items-start justify-between gap-3">
-                <h3 className="font-display text-base font-semibold leading-snug text-leaf-strong">
-                  {listing.title}
-                </h3>
-                <span className="flex shrink-0 items-center gap-1 rounded-full bg-leaf-soft px-2.5 py-1 text-[0.68rem] font-semibold text-leaf-strong">
-                  <ShieldCheck className="size-3.5" /> AI Verified
-                </span>
-              </div>
+              <h3 className="font-display text-base font-semibold leading-snug text-leaf-strong">
+                {listing.title}
+              </h3>
 
               <dl className="mt-5 grid gap-3 text-sm">
                 <div className="flex items-center gap-2 text-muted-foreground">

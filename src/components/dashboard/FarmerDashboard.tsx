@@ -1,32 +1,30 @@
 import Link from "next/link";
 import {
   ArrowRight,
+  CircleX,
+  Coins,
   MapPin,
   ScanLine,
-  ShieldCheck,
   Store,
   Tag,
-  TrendingUp,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import {
+  formatKg,
+  relativeDay,
+  type FarmerDashboardData,
+} from "@/lib/dashboard";
 import { STATUS_META, formatRupees } from "@/lib/listings";
 import { RECEIVED_STATUS_META, type OfferStatus } from "@/lib/offers";
-import {
-  MOCK_FARMER_NAME,
-  MOCK_LISTINGS,
-  MOCK_OFFERS,
-  MOCK_SCANS,
-  MOCK_TRUST_SCORE,
-  MOCK_VERIFIED_SCAN,
-} from "@/lib/mock/farmer-dashboard";
 
 /**
  * Farmer home.
  *
- * Display only: every figure comes from `@/lib/mock/farmer-dashboard`, which
- * mirrors the `/api/listings` and `/api/offers` shapes, so the fetches can be
- * dropped in later without touching this markup.
+ * Presentation only: every figure arrives as `data`, read in one pass by
+ * `getFarmerDashboard` on the page above. When that read fails the page still
+ * renders — an empty workspace with `error` set — rather than replacing the
+ * whole screen with an error.
  */
 
 /** Short badge text — the offers page has room for the full sentence. */
@@ -37,54 +35,59 @@ const OFFER_BADGE: Record<OfferStatus, string> = {
   withdrawn: "Withdrawn",
 };
 
-/** "Today", "Yesterday" or "N days ago" for an ISO timestamp. */
-function age(iso: string): string {
-  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
-
-  if (days <= 0) return "Today";
-  if (days === 1) return "Yesterday";
-
-  return `${days} days ago`;
-}
-
 type FarmerDashboardProps = {
-  /** Falls back to the mock farmer when the page has no signed-in name. */
+  data: FarmerDashboardData;
+  /** Falls back to a neutral greeting when the page has no signed-in name. */
   userName?: string;
+  /** Set when the figures could not be read. */
+  error?: string;
 };
 
 const FarmerDashboard = ({
-  userName = MOCK_FARMER_NAME,
+  data,
+  userName = "farmer",
+  error,
 }: FarmerDashboardProps) => {
-  const scans = MOCK_SCANS;
-  const listings = MOCK_LISTINGS;
-  const offers = MOCK_OFFERS;
-  const verifiedScan = MOCK_VERIFIED_SCAN;
-
-  const activeListings = listings.filter(
-    (listing) => listing.status === "active",
-  );
-  const pendingOffers = offers.filter((offer) => offer.status === "pending");
+  const { scans, listings, offers } = data;
 
   const stats = [
     {
       label: "Leaf scans",
-      value: scans.length,
+      value: scans.total,
+      hint:
+        scans.total === 0
+          ? "Check your first leaf"
+          : `${scans.healthy} healthy · ${scans.diseased} need care`,
       icon: ScanLine,
     },
     {
       label: "Active listings",
-      value: activeListings.length,
+      value: listings.active,
+      hint:
+        listings.active === 0
+          ? "Nothing on the marketplace"
+          : `${formatKg(listings.activeWeightKg)} asking ${formatRupees(listings.activeValue)}`,
       icon: Store,
     },
     {
       label: "Pending offers",
-      value: pendingOffers.length,
+      value: offers.pending,
+      hint:
+        offers.pending === 0
+          ? "No bids waiting on you"
+          : `${formatRupees(offers.pendingValue)} on the table`,
       icon: Tag,
     },
     {
-      label: "Trust score",
-      value: `${MOCK_TRUST_SCORE} / 100`,
-      icon: TrendingUp,
+      label: "Earned from sales",
+      value: formatRupees(offers.earnings),
+      hint:
+        offers.accepted === 0
+          ? "No harvest sold yet"
+          : `Across ${offers.accepted} accepted ${
+              offers.accepted === 1 ? "offer" : "offers"
+            }`,
+      icon: Coins,
     },
   ];
 
@@ -98,8 +101,8 @@ const FarmerDashboard = ({
           Your Farmer Workspace
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed opacity-85">
-          Verify a leaf as disease free, publish your harvest and negotiate
-          directly with factory buyers — no middleman required.
+          Check a leaf for disease, publish your harvest and negotiate directly
+          with factory buyers — no middleman required.
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Button asChild variant="soft" size="lg">
@@ -115,6 +118,13 @@ const FarmerDashboard = ({
         </div>
       </section>
 
+      {error && (
+        <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4">
+          <CircleX className="mt-0.5 size-5 shrink-0 text-red-600" />
+          <p className="text-sm leading-relaxed text-red-800">{error}</p>
+        </div>
+      )}
+
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map((stat) => (
           <div key={stat.label} className="surface-card p-5">
@@ -125,50 +135,9 @@ const FarmerDashboard = ({
               {stat.value}
             </p>
             <p className="text-sm text-muted-foreground">{stat.label}</p>
+            <p className="mt-2 text-xs text-muted-foreground/80">{stat.hint}</p>
           </div>
         ))}
-      </section>
-
-      <section
-        className={`surface-card flex flex-col gap-4 p-6 sm:flex-row sm:items-center ${
-          verifiedScan ? "border-leaf/40" : ""
-        }`}
-      >
-        <span
-          className={`grid size-12 shrink-0 place-items-center rounded-2xl ${
-            verifiedScan
-              ? "gradient-leaf text-primary-foreground"
-              : "bg-secondary text-muted-foreground"
-          }`}
-        >
-          <ShieldCheck className="size-6" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h2 className="font-display text-lg font-bold text-leaf-strong">
-            {verifiedScan
-              ? "AI Disease Free Stamp active"
-              : "Marketplace listing locked"}
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {verifiedScan
-              ? `Verified as ${verifiedScan.label} with ${verifiedScan.confidence.toFixed(1)}% confidence. You can publish a harvest listing now.`
-              : "A leaf must be classified as Healthy by the AI model before you can create a marketplace listing."}
-          </p>
-        </div>
-        <Button
-          asChild
-          variant={verifiedScan ? "hero" : "leafOutline"}
-          size="lg"
-        >
-          <Link
-            href={
-              verifiedScan ? "/dashboard/listings" : "/dashboard/disease-detect"
-            }
-          >
-            {verifiedScan ? "Post harvest" : "Verify a leaf"}
-            <ArrowRight className="size-4" />
-          </Link>
-        </Button>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
@@ -176,14 +145,14 @@ const FarmerDashboard = ({
           <h2 className="font-display text-lg font-bold text-leaf-strong">
             Recent scans
           </h2>
-          {scans.length === 0 ? (
+          {scans.recent.length === 0 ? (
             <p className="mt-3 text-sm text-muted-foreground">
               No scans yet. Upload or capture a tea leaf photo to run the
               MobileNetV2 diagnostic engine.
             </p>
           ) : (
             <ul className="mt-4 grid gap-3">
-              {scans.slice(0, 4).map((scan) => (
+              {scans.recent.map((scan) => (
                 <li
                   key={scan.id}
                   className="flex items-center justify-between gap-3 rounded-xl bg-secondary p-3"
@@ -193,7 +162,7 @@ const FarmerDashboard = ({
                       {scan.label}
                     </span>
                     <span className="block text-xs text-muted-foreground">
-                      {age(scan.scannedAt)}
+                      {relativeDay(scan.scannedAt)}
                     </span>
                   </span>
                   <span
@@ -218,14 +187,19 @@ const FarmerDashboard = ({
           <h2 className="font-display text-lg font-bold text-leaf-strong">
             Buyer activity
           </h2>
-          {offers.length === 0 ? (
+          {offers.bestPricePerKg > 0 && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Best standing bid {formatRupees(offers.bestPricePerKg)}/kg
+            </p>
+          )}
+          {offers.recent.length === 0 ? (
             <p className="mt-3 text-sm text-muted-foreground">
               No offers yet. Factories bid once your harvest is on the
               marketplace.
             </p>
           ) : (
             <ul className="mt-4 grid gap-3">
-              {offers.slice(0, 3).map((offer) => (
+              {offers.recent.map((offer) => (
                 <li
                   key={offer.id}
                   className="flex items-center justify-between gap-3 rounded-xl bg-secondary p-3"
@@ -257,9 +231,17 @@ const FarmerDashboard = ({
 
       <section className="surface-card p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-display text-lg font-bold text-leaf-strong">
-            Your harvests
-          </h2>
+          <div>
+            <h2 className="font-display text-lg font-bold text-leaf-strong">
+              Your harvests
+            </h2>
+            {listings.total > 0 && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {listings.active} active · {listings.sold} sold ·{" "}
+                {listings.total} published in total
+              </p>
+            )}
+          </div>
           <Button asChild variant="leafOutline" size="sm">
             <Link href="/dashboard/listings">
               Manage listings
@@ -268,27 +250,22 @@ const FarmerDashboard = ({
           </Button>
         </div>
 
-        {listings.length === 0 ? (
+        {listings.recent.length === 0 ? (
           <p className="mt-3 text-sm text-muted-foreground">
-            Nothing published yet. A verified harvest reaches every registered
+            Nothing published yet. Your harvest reaches every registered
             factory the moment you post it.
           </p>
         ) : (
           <ul className="mt-4 grid gap-3">
-            {listings.map((listing) => (
+            {listings.recent.map((listing) => (
               <li
                 key={listing.id}
                 className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-secondary p-4"
               >
                 <div className="min-w-0">
-                  <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-leaf-strong">
+                  <p className="text-sm font-semibold text-leaf-strong">
                     {listing.weightKg} kg · {formatRupees(listing.pricePerKg)}
                     /kg
-                    {listing.verification && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-leaf-soft px-2 py-0.5 text-xs font-semibold text-leaf-strong">
-                        <ShieldCheck className="size-3.5" /> Verified
-                      </span>
-                    )}
                   </p>
                   <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
                     <MapPin className="size-3.5" />

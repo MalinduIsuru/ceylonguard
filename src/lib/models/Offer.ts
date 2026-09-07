@@ -3,10 +3,9 @@ import mongoose, { Model, Schema, Types } from "mongoose";
 /**
  * A price a factory has put on one farmer's harvest listing.
  *
- * The listing's asking price and weight are copied in at offer time for the
- * same reason `Listing` copies its verification: the offer is a statement
- * about the harvest as it was advertised, and it should keep reading that way
- * after the farmer edits or removes the listing.
+ * The listing's asking price and weight are copied in at offer time: the offer
+ * is a statement about the harvest as it was advertised, and it should keep
+ * reading that way after the farmer edits or removes the listing.
  *
  * `farmerClerkId` is denormalised off the listing so the farmer's "Offers
  * received" screen is one indexed read rather than a join.

@@ -25,11 +25,11 @@ const PortalsSection = () => {
             image={farmerImage.src}
             imageAlt="Sri Lankan tea farmer plucking fresh leaves on a hillside plantation"
             title="For Tea Farmers"
-            description="Protect your crop, verify healthy leaves, publish available harvests and connect directly with factory buyers."
+            description="Protect your crop, check your leaves for disease, publish available harvests and connect directly with factory buyers."
             features={[
               "AI Tea Leaf Disease Detection",
               "Sinhala Friendly Interface",
-              "Disease Free Verification",
+              "Treatment Guidance",
               "Post Harvest Listings",
               "Receive Buyer Offers",
               "Direct Chat",
@@ -44,10 +44,9 @@ const PortalsSection = () => {
               image={factoryImage.src}
               imageAlt="Manager inspecting fresh tea leaves inside a Sri Lankan tea factory"
               title="For Factory Managers"
-              description="Discover verified tea harvests from regional farmers, compare price and quantity, and make direct offers."
+              description="Discover tea harvests from regional farmers, compare price and quantity, and make direct offers."
               features={[
                 "Browse the Harvest Marketplace",
-                "Browse Verified Harvests",
                 "Filter by District",
                 "Compare Price and Quantity",
                 "Make Direct Offers",

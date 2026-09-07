@@ -17,14 +17,15 @@ const HowItWorks = () => {
     },
     {
       icon: ShieldCheck,
-      title: "Receive Health Verification",
-      description: "Healthy leaves receive an AI Disease Free verification.",
+      title: "Read the Diagnosis",
+      description:
+        "Every scan comes back with the symptoms to look for and a treatment plan for the block.",
     },
     {
       icon: Upload,
       title: "Publish Your Harvest",
       description:
-        "Verified farmers can list their available tea harvest including quantity, price, district and harvest date.",
+        "List your available tea harvest at any time — quantity, price, district and harvest date.",
     },
     {
       icon: Handshake,

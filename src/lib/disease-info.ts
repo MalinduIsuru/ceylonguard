@@ -83,7 +83,7 @@ const HEALTHY: DiseaseInfo = {
   pathogen: "No pathogen detected",
   severity: "healthy",
   summary:
-    "No disease symptoms were found on this leaf. The bush looks to be in good condition, so this harvest qualifies for the AI Disease Free Stamp.",
+    "No disease symptoms were found on this leaf. The bush looks to be in good condition.",
   symptoms: [
     "Even green colour with no spots, lesions or discolouration",
     "Firm, undamaged leaf margin and tip",

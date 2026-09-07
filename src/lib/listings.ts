@@ -4,16 +4,6 @@ import type { ListingStatus } from "@/lib/models/Listing";
 
 export type { ListingStatus };
 
-/** The AI Disease Free Stamp as the UI reads it back. */
-export type ListingVerificationView = {
-  label: string;
-  /** Percentage, 0 to 100. */
-  confidence: number;
-  /** ISO 8601. */
-  scannedAt: string;
-  imageUrl?: string;
-};
-
 export type ListingItem = {
   id: string;
   weightKg: number;
@@ -24,28 +14,13 @@ export type ListingItem = {
   /** Calendar day as `YYYY-MM-DD` — a harvest date has no time of day. */
   harvestDate: string;
   status: ListingStatus;
-  /** Present only when the listing carries the stamp. */
-  verification?: ListingVerificationView;
   /** ISO 8601. */
   createdAt: string;
-};
-
-/**
- * A healthy scan the farmer has not spent yet, offered as the stamp for the
- * next listing. Null when the farmer has no recent healthy scan available.
- */
-export type AvailableStamp = {
-  scanId: string;
-  label: string;
-  confidence: number;
-  scannedAt: string;
-  imageUrl?: string;
 };
 
 /** Totals across every listing the farmer has published. */
 export type ListingStats = {
   active: number;
-  verified: number;
   totalWeightKg: number;
   /** Weighted by nothing — a plain mean over active listings, 0 when none. */
   averagePricePerKg: number;
@@ -55,7 +30,6 @@ export type ListingsSuccess = {
   ok: true;
   items: ListingItem[];
   stats: ListingStats;
-  stamp: AvailableStamp | null;
 };
 
 export type ListingFailure = {
@@ -71,8 +45,6 @@ export type ListingsResponse = ListingsSuccess | ListingFailure;
 export type CreateListingSuccess = {
   ok: true;
   listing: ListingItem;
-  /** False when the listing published without a stamp. */
-  verified: boolean;
 };
 
 export type CreateListingResponse = CreateListingSuccess | ListingFailure;
@@ -91,18 +63,24 @@ export type DeleteListingSuccess = {
 
 export type DeleteListingResponse = DeleteListingSuccess | ListingFailure;
 
-/** What the publish form sends. Values arrive as typed by the farmer. */
-export type CreateListingInput = {
+/** The harvest details a form sends. Values arrive as typed by the farmer. */
+export type ListingInput = {
   weightKg: unknown;
   pricePerKg: unknown;
   district: unknown;
   harvestDate: unknown;
-  /**
-   * Whether to spend the offered stamp on this listing. The client never picks
-   * the scan id — the server resolves it, so a farmer cannot attach someone
-   * else's scan or one they have already used.
-   */
-  useStamp?: boolean;
+};
+
+/** What the publish form sends. */
+export type CreateListingInput = ListingInput;
+
+/**
+ * What the edit form sends. The harvest details and the status move through
+ * the same request, so a farmer can correct a row and re-open it in one go;
+ * both halves are optional, and an empty body changes nothing.
+ */
+export type UpdateListingInput = Partial<ListingInput> & {
+  status?: unknown;
 };
 
 export type ListingField =
@@ -131,14 +109,6 @@ export const LISTING_LIMITS = {
   /** Green leaf does not keep, so a listing cannot be back-dated further. */
   maxHarvestAgeDays: 30,
 } as const;
-
-/**
- * How long a healthy scan can still stamp a listing.
- *
- * The stamp is a claim about the leaf being sold now, so an old scan stops
- * counting rather than verifying every future harvest from the same block.
- */
-export const STAMP_VALID_DAYS = 7;
 
 /** Page size for "My listings". */
 export const LISTINGS_PAGE_SIZE = 20;
@@ -173,14 +143,26 @@ function readPositiveNumber(value: unknown): number | null {
   return parsed;
 }
 
+export type ValidateListingOptions = {
+  /**
+   * The harvest date already on the row, exempt from the age limit.
+   *
+   * An edit re-validates every field, so without this a listing would become
+   * uneditable the day its harvest passed the 30-day cut-off — the farmer
+   * could no longer fix a price on stock they had already published.
+   */
+  currentHarvestDate?: string;
+};
+
 /**
- * Validates a publish form.
+ * Validates a publish or edit form.
  *
  * Runs on both sides: the page uses it to show field errors without a round
  * trip, and the route runs it again because a client check is not a guarantee.
  */
 export function validateListingInput(
-  input: CreateListingInput,
+  input: ListingInput,
+  options: ValidateListingOptions = {},
 ): { ok: true; value: NormalisedListing } | { ok: false; errors: ListingFieldErrors } {
   const errors: ListingFieldErrors = {};
 
@@ -221,7 +203,10 @@ export function validateListingInput(
 
     if (ageDays < 0) {
       errors.harvestDate = "The harvest date cannot be in the future.";
-    } else if (ageDays > LISTING_LIMITS.maxHarvestAgeDays) {
+    } else if (
+      ageDays > LISTING_LIMITS.maxHarvestAgeDays &&
+      rawDate !== options.currentHarvestDate
+    ) {
       errors.harvestDate = `Harvests older than ${LISTING_LIMITS.maxHarvestAgeDays} days cannot be listed.`;
     }
   }

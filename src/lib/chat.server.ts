@@ -96,7 +96,7 @@ export async function resolveListingContexts(
   if (ids.length === 0) return new Map();
 
   const listings = await Listing.find({ _id: { $in: ids } })
-    .select("district weightKg pricePerKg harvestDate status verification")
+    .select("district weightKg pricePerKg harvestDate status")
     .lean<IListing[]>();
 
   return new Map(
@@ -109,7 +109,6 @@ export async function resolveListingContexts(
         pricePerKg: listing.pricePerKg,
         harvestDate: toDayString(new Date(listing.harvestDate)),
         status: listing.status,
-        verified: Boolean(listing.verification),
       },
     ]),
   );

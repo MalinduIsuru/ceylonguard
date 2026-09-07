@@ -11,7 +11,6 @@ import {
   Phone,
   RefreshCw,
   Scale,
-  ShieldCheck,
   Sprout,
   Tag,
   X,
@@ -262,13 +261,8 @@ const OffersPage = () => {
             >
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <h3 className="flex flex-wrap items-center gap-2 font-display text-lg font-bold text-leaf-strong">
+                  <h3 className="font-display text-lg font-bold text-leaf-strong">
                     {offer.factory}
-                    {offer.listing?.verified ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-leaf-soft px-2 py-0.5 text-[11px] font-semibold text-leaf-strong">
-                        <ShieldCheck className="size-3" /> Verified harvest
-                      </span>
-                    ) : null}
                   </h3>
 
                   <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">

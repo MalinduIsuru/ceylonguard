@@ -1,14 +1,13 @@
 "use client";
 
-import Link from "next/link";
 import {
   CalendarDays,
   CircleX,
   Loader2,
   MapPin,
+  Pencil,
   RefreshCw,
   Scale,
-  ShieldCheck,
   Sprout,
   Store,
   Trash2,
@@ -16,6 +15,14 @@ import {
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -23,7 +30,6 @@ import {
   formatRupees,
   todayString,
   validateListingInput,
-  type AvailableStamp,
   type CreateListingResponse,
   type DeleteListingResponse,
   type ListingFieldErrors,
@@ -37,10 +43,10 @@ import {
 /**
  * Post a Harvest Listing.
  *
- * Everything on this page comes from `/api/listings`: the published rows, the
- * totals above them, and the AI Disease Free Stamp the farmer has left to
- * spend. The form only says whether to use that stamp — the server picks which
- * scan it is, so the badge cannot be claimed without a healthy scan behind it.
+ * Everything on this page comes from `/api/listings`: the published rows and
+ * the totals above them. Publishing happens in the form on the left; editing a
+ * published row opens the same four fields in a dialog over the list, so the
+ * farmer never loses sight of the row they picked.
  */
 
 const GENERIC_ERROR = "Your listings could not be loaded right now.";
@@ -54,10 +60,21 @@ async function requestListings(): Promise<ListingsResponse> {
 
 const EMPTY_STATS: ListingStats = {
   active: 0,
-  verified: 0,
   totalWeightKg: 0,
   averagePricePerKg: 0,
 };
+
+/** Reads the harvest details off either form — both use the same field names. */
+function readListingForm(form: HTMLFormElement) {
+  const data = new FormData(form);
+
+  return {
+    weightKg: data.get("weight"),
+    pricePerKg: data.get("price"),
+    district: data.get("district"),
+    harvestDate: data.get("date"),
+  };
+}
 
 function StatTile({ label, value }: { label: string; value: string }) {
   return (
@@ -77,18 +94,112 @@ function FieldError({ message }: { message?: string }) {
   return <p className="text-xs font-medium text-red-600">{message}</p>;
 }
 
+/**
+ * The four harvest fields.
+ *
+ * Shared by the publish form and the edit dialog so the two can never drift
+ * apart; `idPrefix` keeps the label targets unique while both are on the page.
+ */
+function ListingFields({
+  idPrefix,
+  defaults,
+  errors,
+}: {
+  idPrefix: string;
+  /** The row being edited, or null when publishing a new listing. */
+  defaults?: ListingItem | null;
+  errors: ListingFieldErrors;
+}) {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-2">
+        <Label htmlFor={`${idPrefix}-weight`}>Total weight (kg)</Label>
+        <Input
+          id={`${idPrefix}-weight`}
+          name="weight"
+          type="number"
+          min={1}
+          className="h-12"
+          placeholder="250"
+          defaultValue={defaults?.weightKg ?? ""}
+          aria-invalid={Boolean(errors.weightKg)}
+          required
+        />
+        <FieldError message={errors.weightKg} />
+      </div>
+
+      <div className="grid gap-2">
+        <Label htmlFor={`${idPrefix}-price`}>Asking price (Rs. / kg)</Label>
+        <Input
+          id={`${idPrefix}-price`}
+          name="price"
+          type="number"
+          min={1}
+          className="h-12"
+          placeholder="130"
+          defaultValue={defaults?.pricePerKg ?? ""}
+          aria-invalid={Boolean(errors.pricePerKg)}
+          required
+        />
+        <FieldError message={errors.pricePerKg} />
+      </div>
+
+      <div className="grid gap-2">
+        <Label htmlFor={`${idPrefix}-district`}>District</Label>
+        <Input
+          id={`${idPrefix}-district`}
+          name="district"
+          className="h-12"
+          placeholder="Nuwara Eliya"
+          defaultValue={defaults?.district ?? ""}
+          aria-invalid={Boolean(errors.district)}
+          required
+        />
+        <FieldError message={errors.district} />
+      </div>
+
+      <div className="grid gap-2">
+        <Label htmlFor={`${idPrefix}-date`}>Harvest date</Label>
+        <Input
+          id={`${idPrefix}-date`}
+          name="date"
+          type="date"
+          max={todayString()}
+          className="h-12"
+          defaultValue={defaults?.harvestDate ?? ""}
+          aria-invalid={Boolean(errors.harvestDate)}
+          required
+        />
+        <FieldError message={errors.harvestDate} />
+      </div>
+    </div>
+  );
+}
+
 const ListingsPage = () => {
   const [listings, setListings] = useState<ListingItem[]>([]);
   const [stats, setStats] = useState<ListingStats>(EMPTY_STATS);
-  const [stamp, setStamp] = useState<AvailableStamp | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [submitting, setSubmitting] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<ListingFieldErrors>({});
-  const [formError, setFormError] = useState<string | null>(null);
+  const [publishing, setPublishing] = useState(false);
+  const [publishErrors, setPublishErrors] = useState<ListingFieldErrors>({});
+  const [publishError, setPublishError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  /**
+   * The row the dialog is showing. Held past the close so the fields do not
+   * blank out mid-animation; `editOpen` alone decides whether it is on screen.
+   */
+  const [editing, setEditing] = useState<ListingItem | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  /** Bumped on every open so re-opening a row shows saved values, not typing. */
+  const [editSession, setEditSession] = useState(0);
+
+  const [saving, setSaving] = useState(false);
+  const [editErrors, setEditErrors] = useState<ListingFieldErrors>({});
+  const [editError, setEditError] = useState<string | null>(null);
 
   /** Id of the row mid-request, so only that card shows as busy. */
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -106,7 +217,6 @@ const ListingsPage = () => {
         if (payload.ok) {
           setListings(payload.items);
           setStats(payload.stats);
-          setStamp(payload.stamp);
           setLoadError(null);
         } else {
           setLoadError(payload.error || GENERIC_ERROR);
@@ -129,33 +239,36 @@ const ListingsPage = () => {
     setReloadToken((current) => current + 1);
   }, []);
 
+  const openEdit = (listing: ListingItem) => {
+    setEditing(listing);
+    setEditSession((current) => current + 1);
+    setEditErrors({});
+    setEditError(null);
+    setNotice(null);
+    setEditOpen(true);
+  };
+
+  const closeEdit = useCallback(() => setEditOpen(false), []);
+
   const publish = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     // `currentTarget` is null once the first await resolves, so hold the form.
     const form = event.currentTarget;
-    const data = new FormData(form);
-
-    const input = {
-      weightKg: data.get("weight"),
-      pricePerKg: data.get("price"),
-      district: data.get("district"),
-      harvestDate: data.get("date"),
-      useStamp: stamp !== null,
-    };
+    const input = readListingForm(form);
 
     const validated = validateListingInput(input);
 
     if (!validated.ok) {
-      setFieldErrors(validated.errors);
-      setFormError("Check the highlighted fields and try again.");
+      setPublishErrors(validated.errors);
+      setPublishError("Check the highlighted fields and try again.");
       setNotice(null);
       return;
     }
 
-    setSubmitting(true);
-    setFieldErrors({});
-    setFormError(null);
+    setPublishing(true);
+    setPublishErrors({});
+    setPublishError(null);
     setNotice(null);
 
     try {
@@ -172,32 +285,91 @@ const ListingsPage = () => {
         setListings((current) => [payload.listing, ...current]);
         setStats((current) => ({
           active: current.active + 1,
-          verified: current.verified + (payload.verified ? 1 : 0),
           totalWeightKg: current.totalWeightKg + payload.listing.weightKg,
           averagePricePerKg:
             (current.averagePricePerKg * current.active +
               payload.listing.pricePerKg) /
             (current.active + 1),
         }));
-
-        // The stamp is spent, so the next listing starts unverified.
-        if (payload.verified) setStamp(null);
-
-        setNotice(
-          payload.verified
-            ? "Listing published with the AI Disease Free Stamp attached."
-            : "Listing published. Run a leaf scan to add the AI Disease Free Stamp to your next one.",
-        );
+        setNotice("Listing published. Factory buyers can send offers now.");
       } else {
-        setFieldErrors(payload.fieldErrors ?? {});
-        setFormError(payload.error);
+        setPublishErrors(payload.fieldErrors ?? {});
+        setPublishError(payload.error);
       }
     } catch {
-      setFormError(
+      setPublishError(
         "Could not reach the CeylonGuard server. Check your connection.",
       );
     } finally {
-      setSubmitting(false);
+      setPublishing(false);
+    }
+  };
+
+  const saveEdit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const target = editing;
+
+    if (!target) return;
+
+    const input = readListingForm(event.currentTarget);
+
+    // An edit keeps the day it was already published with, even once that day
+    // has aged past the limit a new listing has to meet.
+    const validated = validateListingInput(input, {
+      currentHarvestDate: target.harvestDate,
+    });
+
+    if (!validated.ok) {
+      setEditErrors(validated.errors);
+      setEditError("Check the highlighted fields and try again.");
+      return;
+    }
+
+    setSaving(true);
+    setEditErrors({});
+    setEditError(null);
+
+    try {
+      const response = await fetch(`/api/listings/${target.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+
+      const payload = (await response.json()) as UpdateListingResponse;
+
+      if (payload.ok) {
+        // Weight and price both move the totals, so the list needs a refetch
+        // rather than a reproduction of the aggregation here. The button stays
+        // in its loading state across it and the dialog closes only once the
+        // refreshed rows are in — closing early would drop the farmer back on
+        // a list still showing the figures they just changed.
+        const refreshed = await requestListings().catch(() => null);
+
+        if (refreshed?.ok) {
+          setListings(refreshed.items);
+          setStats(refreshed.stats);
+          setLoadError(null);
+        } else {
+          // The edit itself landed; only the totals are behind. Show the saved
+          // row and leave the summary to the next reload.
+          setListings((current) =>
+            current.map((row) => (row.id === target.id ? payload.listing : row)),
+          );
+        }
+
+        setEditOpen(false);
+      } else {
+        setEditErrors(payload.fieldErrors ?? {});
+        setEditError(payload.error);
+      }
+    } catch {
+      setEditError(
+        "Could not reach the CeylonGuard server. Check your connection.",
+      );
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -218,8 +390,8 @@ const ListingsPage = () => {
         setListings((current) =>
           current.map((row) => (row.id === id ? payload.listing : row)),
         );
-        // Totals and the free stamp both move with status; refetch rather than
-        // trying to reproduce the aggregation here.
+        // Totals move with status; refetch rather than trying to reproduce the
+        // aggregation here.
         reload();
       } else {
         setLoadError(payload.error);
@@ -241,6 +413,9 @@ const ListingsPage = () => {
 
       if (payload.ok) {
         setListings((current) => current.filter((row) => row.id !== id));
+        // The row on screen in the dialog has just gone; there is nothing left
+        // to save it to.
+        if (editing?.id === id) setEditOpen(false);
         reload();
       } else {
         setLoadError(payload.error);
@@ -263,8 +438,8 @@ const ListingsPage = () => {
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
           Publish your available stock so matched factory managers can send
-          offers directly. A leaf scan is optional — it just adds the AI Disease
-          Free Stamp to your listing.
+          offers directly. You can edit the weight, price, district or harvest
+          date of anything you have already published.
         </p>
       </header>
 
@@ -288,9 +463,8 @@ const ListingsPage = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <StatTile label="Active listings" value={String(stats.active)} />
-        <StatTile label="Verified" value={String(stats.verified)} />
         <StatTile
           label="Stock listed"
           value={`${stats.totalWeightKg.toLocaleString()} kg`}
@@ -308,108 +482,31 @@ const ListingsPage = () => {
       <div className="grid gap-5 lg:grid-cols-[1fr_0.85fr]">
         <section className="surface-card p-5 sm:p-6">
           <div className="flex items-center gap-2.5">
-            <span
-              className={`grid size-10 place-items-center rounded-xl ${
-                stamp
-                  ? "gradient-leaf text-primary-foreground"
-                  : "bg-secondary text-muted-foreground"
-              }`}
-            >
-              <ShieldCheck className="size-5" />
+            <span className="grid size-10 place-items-center rounded-xl gradient-leaf text-primary-foreground">
+              <Store className="size-5" />
             </span>
             <div>
               <p className="font-display text-base font-bold text-leaf-strong">
-                {stamp
-                  ? "AI Disease Free Stamp attached"
-                  : "Listing open · scan optional"}
+                New harvest listing
               </p>
               <p className="text-xs text-muted-foreground">
-                {stamp
-                  ? `Healthy leaf · ${stamp.confidence.toFixed(1)}% confidence`
-                  : "You can publish now. Adding a leaf scan boosts buyer trust."}
+                Four details and your stock is live to every registered factory.
               </p>
             </div>
           </div>
 
           <form className="mt-6 grid gap-4" onSubmit={publish}>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="grid gap-2">
-                <Label htmlFor="weight">Total weight (kg)</Label>
-                <Input
-                  id="weight"
-                  name="weight"
-                  type="number"
-                  min={1}
-                  className="h-12"
-                  placeholder="250"
-                  aria-invalid={Boolean(fieldErrors.weightKg)}
-                  required
-                />
-                <FieldError message={fieldErrors.weightKg} />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="price">Asking price (Rs. / kg)</Label>
-                <Input
-                  id="price"
-                  name="price"
-                  type="number"
-                  min={1}
-                  className="h-12"
-                  placeholder="130"
-                  aria-invalid={Boolean(fieldErrors.pricePerKg)}
-                  required
-                />
-                <FieldError message={fieldErrors.pricePerKg} />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="district">District</Label>
-                <Input
-                  id="district"
-                  name="district"
-                  className="h-12"
-                  placeholder="Nuwara Eliya"
-                  aria-invalid={Boolean(fieldErrors.district)}
-                  required
-                />
-                <FieldError message={fieldErrors.district} />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="date">Harvest date</Label>
-                <Input
-                  id="date"
-                  name="date"
-                  type="date"
-                  max={todayString()}
-                  className="h-12"
-                  aria-invalid={Boolean(fieldErrors.harvestDate)}
-                  required
-                />
-                <FieldError message={fieldErrors.harvestDate} />
-              </div>
-            </div>
+            <ListingFields idPrefix="new" errors={publishErrors} />
 
-            <Button
-              type="submit"
-              variant="hero"
-              size="xl"
-              disabled={submitting}
-            >
-              {submitting && <Loader2 className="size-4 animate-spin" />}
-              {submitting ? "Publishing…" : "Publish listing"}
+            <Button type="submit" variant="hero" size="xl" disabled={publishing}>
+              {publishing && <Loader2 className="size-4 animate-spin" />}
+              {publishing ? "Publishing…" : "Publish listing"}
             </Button>
-
-            {!stamp && (
-              <Button asChild variant="soft" size="lg">
-                <Link href="/dashboard/disease-detect">
-                  Optional: run a leaf scan first
-                </Link>
-              </Button>
-            )}
           </form>
 
-          {formError && (
+          {publishError && (
             <p className="mt-5 rounded-xl bg-red-50 p-3 text-sm text-red-800">
-              {formError}
+              {publishError}
             </p>
           )}
 
@@ -456,22 +553,26 @@ const ListingsPage = () => {
               {listings.map((listing) => {
                 const status = STATUS_META[listing.status];
                 const busy = busyId === listing.id;
+                const underEdit = editOpen && editing?.id === listing.id;
 
                 return (
                   <li
                     key={listing.id}
-                    className={`rounded-2xl border border-leaf/25 bg-leaf-soft/40 p-4 transition-opacity ${
-                      busy ? "opacity-60" : ""
-                    }`}
+                    className={`rounded-2xl border bg-leaf-soft/40 p-4 transition-opacity ${
+                      underEdit ? "border-leaf" : "border-leaf/25"
+                    } ${busy ? "opacity-60" : ""}`}
                   >
                     <div className="flex items-center justify-between gap-3">
                       <p className="font-display text-lg font-bold text-leaf-strong">
                         {formatRupees(listing.pricePerKg)}/kg
                       </p>
-                      <span className="flex items-center gap-1.5 rounded-full bg-card px-2.5 py-1 text-xs font-semibold text-leaf-strong">
-                        <ShieldCheck className="size-3.5" />
-                        {listing.verification ? "Verified" : "Unverified"}
-                      </span>
+
+                      {underEdit && (
+                        <span className="flex items-center gap-1.5 rounded-full bg-card px-2.5 py-1 text-xs font-semibold text-leaf-strong">
+                          <Pencil className="size-3" />
+                          Editing
+                        </span>
+                      )}
                     </div>
 
                     <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
@@ -498,6 +599,16 @@ const ListingsPage = () => {
                       </span>
 
                       <div className="ml-auto flex flex-wrap items-center gap-1.5">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => openEdit(listing)}
+                        >
+                          <Pencil className="size-3.5" />
+                          Edit
+                        </Button>
+
                         {listing.status === "active" ? (
                           <>
                             <Button
@@ -552,6 +663,76 @@ const ListingsPage = () => {
           )}
         </section>
       </div>
+
+      <Dialog
+        open={editOpen}
+        // A save in flight owns the dialog: dismissing it now would leave the
+        // farmer with no idea whether the change landed.
+        onOpenChange={(open) => {
+          if (!open && !saving) setEditOpen(false);
+        }}
+      >
+        {/*
+          No corner "X": the shared close button asks Button for an `icon-sm`
+          size the variants do not define, so it renders unpadded. Cancel in
+          the footer, Escape and the backdrop all close this anyway.
+        */}
+        <DialogContent
+          showCloseButton={false}
+          className="max-h-[90vh] overflow-y-auto sm:max-w-lg"
+        >
+          <DialogHeader>
+            <DialogTitle className="font-display text-lg font-bold text-leaf-strong">
+              Edit listing
+            </DialogTitle>
+            <DialogDescription>
+              {editing
+                ? `${editing.weightKg} kg from ${editing.district}, harvested ${editing.harvestDate}.`
+                : "Change the harvest details and save."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {/*
+            Keyed by the row and the open that showed it, so re-opening a
+            listing always starts from its saved values rather than whatever
+            was left in the inputs the last time round.
+          */}
+          <form
+            key={`${editing?.id ?? "none"}-${editSession}`}
+            className="grid gap-4"
+            onSubmit={saveEdit}
+          >
+            <ListingFields
+              idPrefix="edit"
+              defaults={editing}
+              errors={editErrors}
+            />
+
+            {editError && (
+              <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">
+                {editError}
+              </p>
+            )}
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="ghost"
+                size="lg"
+                disabled={saving}
+                onClick={closeEdit}
+              >
+                Cancel
+              </Button>
+
+              <Button type="submit" variant="hero" size="lg" disabled={saving}>
+                {saving && <Loader2 className="size-4 animate-spin" />}
+                {saving ? "Saving…" : "Save changes"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

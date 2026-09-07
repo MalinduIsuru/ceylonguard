@@ -110,7 +110,7 @@ export async function resolveOfferListings(
     _id: { $in: ids },
     clerkId: farmerClerkId,
   })
-    .select("district harvestDate status verification")
+    .select("district harvestDate status")
     .lean<IListing[]>();
 
   return new Map(
@@ -121,7 +121,6 @@ export async function resolveOfferListings(
         district: listing.district,
         harvestDate: toDayString(new Date(listing.harvestDate)),
         status: listing.status,
-        verified: Boolean(listing.verification),
       },
     ]),
   );

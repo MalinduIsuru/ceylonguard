@@ -20,8 +20,6 @@ export type OfferListing = {
   /** Calendar day as `YYYY-MM-DD`. */
   harvestDate: string;
   status: ListingStatus;
-  /** Whether the harvest carries the AI Disease Free Stamp. */
-  verified: boolean;
 };
 
 export type ReceivedOffer = {

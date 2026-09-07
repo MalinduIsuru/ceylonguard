@@ -55,10 +55,10 @@ const LeafScanCard = () => {
         <ShieldCheck className="size-5 shrink-0" />
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold">
-            AI Disease Free Verified
+            No Disease Detected
           </p>
           <p className="truncate text-xs opacity-80">
-            Eligible for marketplace listing
+            Keep to the routine care schedule
           </p>
         </div>
         <Sparkles className="ml-auto size-4 shrink-0 opacity-80" />

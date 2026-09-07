@@ -10,25 +10,17 @@ import {
   type ListingStats,
   type ListingsSuccess,
 } from "@/lib/listings";
-import {
-  requireFarmer,
-  resolveAvailableStamp,
-  toListingItem,
-} from "@/lib/listings.server";
+import { requireFarmer, toListingItem } from "@/lib/listings.server";
 import connectDB from "@/lib/mongodb";
 import Listing, { type IListing } from "@/lib/models/Listing";
 
 /**
  * The farmer's own harvest listings.
  *
- * GET returns the rows, the totals shown above them, and the AI Disease Free
- * Stamp that is still available to spend — the page needs all three to render,
- * and they come from one connection rather than three round trips.
+ * GET returns the rows and the totals shown above them — the page needs both
+ * to render, and they come from one connection rather than two round trips.
  *
- * POST publishes a listing. The stamp is resolved server-side from the
- * farmer's own recent healthy scans: the client sends a yes/no, never a scan
- * id, so a listing cannot be stamped with a scan that is not the farmer's or
- * one that has already been spent.
+ * POST publishes a listing from the harvest details alone.
  */
 
 export const runtime = "nodejs";
@@ -70,7 +62,7 @@ export async function GET(request: Request) {
       return fail(access.status, { ok: false, error: access.error });
     }
 
-    const [rows, totals, available] = await Promise.all([
+    const [rows, totals] = await Promise.all([
       Listing.find({ clerkId: userId })
         .sort({ createdAt: -1 })
         .limit(limit)
@@ -78,7 +70,6 @@ export async function GET(request: Request) {
       Listing.aggregate<{
         _id: null;
         active: number;
-        verified: number;
         totalWeightKg: number;
         averagePricePerKg: number;
       }>([
@@ -87,22 +78,17 @@ export async function GET(request: Request) {
           $group: {
             _id: null,
             active: { $sum: 1 },
-            verified: {
-              $sum: { $cond: [{ $ifNull: ["$verification", false] }, 1, 0] },
-            },
             totalWeightKg: { $sum: "$weightKg" },
             averagePricePerKg: { $avg: "$pricePerKg" },
           },
         },
       ]),
-      resolveAvailableStamp(userId),
     ]);
 
     const summary = totals[0];
 
     const stats: ListingStats = {
       active: summary?.active ?? 0,
-      verified: summary?.verified ?? 0,
       totalWeightKg: summary?.totalWeightKg ?? 0,
       averagePricePerKg: summary?.averagePricePerKg ?? 0,
     };
@@ -111,7 +97,6 @@ export async function GET(request: Request) {
       ok: true,
       items: rows.map(toListingItem),
       stats,
-      stamp: available?.stamp ?? null,
     };
 
     return NextResponse.json(body);
@@ -161,10 +146,6 @@ export async function POST(request: Request) {
       return fail(access.status, { ok: false, error: access.error });
     }
 
-    // Only ask for the stamp when the farmer wants it; an unstamped listing is
-    // a normal outcome, not a fallback.
-    const available = payload.useStamp ? await resolveAvailableStamp(userId) : null;
-
     const listing = new Listing({
       clerkId: userId,
       user: access.farmer.userId,
@@ -175,20 +156,6 @@ export async function POST(request: Request) {
       harvestDate: harvestDay,
 
       status: "active",
-
-      ...(available
-        ? {
-            scan: available.scan._id,
-            verification: {
-              label: available.scan.label,
-              confidence: available.scan.confidence,
-              scannedAt: available.scan.scannedAt,
-              ...(available.scan.imageUrl
-                ? { imageUrl: available.scan.imageUrl }
-                : {}),
-            },
-          }
-        : {}),
     });
 
     await listing.save();
@@ -196,7 +163,6 @@ export async function POST(request: Request) {
     const body: CreateListingSuccess = {
       ok: true,
       listing: toListingItem(listing.toObject<IListing>()),
-      verified: available !== null,
     };
 
     return NextResponse.json(body, { status: 201 });

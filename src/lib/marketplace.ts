@@ -1,4 +1,3 @@
-import type { ListingVerificationView } from "@/lib/listings";
 import type { OfferStatus } from "@/lib/models/Offer";
 
 /**
@@ -27,8 +26,6 @@ export type MarketListing = {
   /** Calendar day as `YYYY-MM-DD`. */
   harvestDate: string;
 
-  /** Present only when the listing carries the AI Disease Free Stamp. */
-  verification?: ListingVerificationView;
   /** ISO 8601. */
   createdAt: string;
 };

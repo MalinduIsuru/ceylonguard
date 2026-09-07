@@ -11,7 +11,6 @@ import {
   RefreshCw,
   Scale,
   Search,
-  ShieldCheck,
   Store,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -239,8 +238,7 @@ const MarketPage = () => {
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
           Every harvest farmers have published, newest first. Filter by
           district, price and quantity, then send a direct price offer in one
-          action. Listings carrying the AI Disease Free Stamp are marked
-          verified.
+          action.
         </p>
       </header>
 
@@ -361,18 +359,8 @@ const MarketPage = () => {
             >
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <h2 className="flex flex-wrap items-center gap-2 font-display text-lg font-bold text-leaf-strong">
+                  <h2 className="font-display text-lg font-bold text-leaf-strong">
                     {listing.farmer}
-                    {listing.verification ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-leaf-soft px-2 py-0.5 text-[11px] font-semibold text-leaf-strong">
-                        <ShieldCheck className="size-3" /> Verified ·{" "}
-                        {listing.verification.confidence.toFixed(1)}%
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
-                        No leaf scan
-                      </span>
-                    )}
                   </h2>
                   <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1.5">

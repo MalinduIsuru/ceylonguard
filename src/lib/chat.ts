@@ -32,8 +32,6 @@ export type ChatListingContext = {
   /** Calendar day as `YYYY-MM-DD`. */
   harvestDate: string;
   status: ListingStatus;
-  /** Whether the harvest carries the AI Disease Free Stamp. */
-  verified: boolean;
 };
 
 /** The offer on the table, when the thread was opened off one. */

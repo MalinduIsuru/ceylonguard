@@ -144,7 +144,7 @@ const AnalyticsPage = () => {
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
           A live summary of what your factory has bought, what it cost and which
-          supplier districts deliver the most verified leaf.
+          supplier districts deliver the most leaf.
         </p>
       </header>
 

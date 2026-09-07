@@ -1,12 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import {
   CircleX,
   History,
   ScanLine,
-  ShieldCheck,
-  Sparkles,
   Sprout,
   TriangleAlert,
 } from "lucide-react";
@@ -28,7 +25,6 @@ import {
   type ScanResponse,
   type ScanSuccess,
 } from "@/lib/disease-detect";
-import { isHealthy } from "@/lib/disease-info";
 
 /**
  * Real inference takes anywhere from a few hundred ms to several seconds, so
@@ -215,8 +211,6 @@ function ScanPage() {
     [],
   );
 
-  const healthy = result !== null && isHealthy(result.info);
-
   return (
     <div className="grid gap-6">
       <header>
@@ -324,46 +318,6 @@ function ScanPage() {
               )}
 
               {result && <ScanResult result={result} />}
-
-              {result && (
-                <div
-                  className={`animate-rise rounded-3xl p-5 sm:p-6 ${
-                    healthy
-                      ? "gradient-deep text-primary-foreground"
-                      : "border border-border bg-card text-foreground"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <ShieldCheck className="size-5 shrink-0" />
-
-                    <p className="font-display text-base font-bold">
-                      AI Disease Free Stamp
-                    </p>
-
-                    {healthy && (
-                      <Sparkles className="ml-auto size-4 opacity-80" />
-                    )}
-                  </div>
-
-                  <p
-                    className={`mt-2 text-sm leading-relaxed ${
-                      healthy ? "opacity-85" : "text-muted-foreground"
-                    }`}
-                  >
-                    {healthy
-                      ? "This leaf was classified as healthy, so the AI Disease Free Stamp is issued. You can now create a harvest marketplace listing."
-                      : "The stamp is only issued when a leaf is classified as Healthy. Treat the block using the plan above, then scan again."}
-                  </p>
-
-                  {healthy && (
-                    <Button asChild variant="soft" size="lg" className="mt-4">
-                      <Link href="/dashboard/listings">
-                        Post a Harvest Listing
-                      </Link>
-                    </Button>
-                  )}
-                </div>
-              )}
 
               {!result && !failure && <ScanPlaceholder />}
             </div>
