@@ -10,6 +10,7 @@ import {
   type OfferFailure,
 } from "@/lib/offers";
 import { hydrateOffer } from "@/lib/offers.server";
+import { createOrderForOffer } from "@/lib/orders.server";
 import connectDB from "@/lib/mongodb";
 import Listing, { type IListing } from "@/lib/models/Listing";
 import Offer, { type IOffer } from "@/lib/models/Offer";
@@ -190,11 +191,27 @@ export async function PATCH(
       { $set: { status: "declined" } },
     );
 
+    // The sale is struck by this point — the offer is accepted and the harvest
+    // is sold — so a consignment that will not write must not fail the accept
+    // and leave the farmer thinking nothing happened. `/api/orders` reconciles
+    // an accepted offer with no order behind it the next time either side
+    // opens the tracking screen, so the trade is late to appear, not lost.
+    let orderId: string | undefined;
+
+    try {
+      const order = await createOrderForOffer(accepted, sold);
+
+      if (order) orderId = String(order._id);
+    } catch (error) {
+      console.error("[offers] Accepted, but no order was written", error);
+    }
+
     const body: DecideOfferSuccess = {
       ok: true,
       offer: await hydrateOffer(accepted, userId),
       listingSold: true,
       declined: rivals.modifiedCount ?? 0,
+      ...(orderId ? { orderId } : {}),
     };
 
     return NextResponse.json(body);

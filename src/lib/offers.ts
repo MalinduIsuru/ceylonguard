@@ -89,6 +89,14 @@ export type DecideOfferSuccess = {
   listingSold: boolean;
   /** How many rival offers accepting this one declined. */
   declined: number;
+  /**
+   * The consignment the acceptance opened, for the order tracking screen.
+   *
+   * Absent on a decline, and absent on the rare accept whose order write
+   * failed after the sale was already struck — `/api/orders` reconciles that
+   * on its next read, so the sale is never lost, only late to appear.
+   */
+  orderId?: string;
 };
 
 export type DecideOfferResponse = DecideOfferSuccess | OfferFailure;

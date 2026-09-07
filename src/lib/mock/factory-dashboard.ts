@@ -7,8 +7,9 @@ import type { MarketListing, MarketOffer } from "@/lib/marketplace";
  * The screen is display-only for now — nothing here touches Mongo. Listings
  * and offers follow the real marketplace contracts (`MarketListing`,
  * `MarketOffer`), so pointing the dashboard at `/api/marketplace` later is a
- * change of source, not of markup. Orders have no API yet, so `FactoryOrder`
- * mirrors the rows the order tracking page already draws.
+ * change of source, not of markup. Orders now have one — `/api/orders`, which
+ * the order tracking page reads — so `FactoryOrder` is the last row here still
+ * waiting to be swapped for its real contract, `OrderItem` in `@/lib/orders`.
  *
  * Every date is relative to today, so the dashboard never reads as stale.
  */
