@@ -21,6 +21,15 @@ export type FactoryContext = {
 };
 
 /**
+ * Wording for the two ways the gate can close, so callers that are not the
+ * marketplace can say what the visitor was actually trying to do.
+ */
+export type FactoryGateMessages = {
+  notOnboarded?: string;
+  notFactory?: string;
+};
+
+/**
  * Resolves the signed-in factory, or the reason it cannot use the marketplace.
  *
  * Mirrors `requireFarmer`: the role is read from the database rather than the
@@ -28,6 +37,7 @@ export type FactoryContext = {
  */
 export async function requireFactory(
   clerkId: string,
+  messages: FactoryGateMessages = {},
 ): Promise<
   | { ok: true; factory: FactoryContext }
   | { ok: false; status: number; error: string }
@@ -44,7 +54,9 @@ export async function requireFactory(
     return {
       ok: false,
       status: 403,
-      error: "Finish setting up your account before browsing the marketplace.",
+      error:
+        messages.notOnboarded ??
+        "Finish setting up your account before browsing the marketplace.",
     };
   }
 
@@ -52,7 +64,9 @@ export async function requireFactory(
     return {
       ok: false,
       status: 403,
-      error: "Only factory accounts can browse listings and send offers.",
+      error:
+        messages.notFactory ??
+        "Only factory accounts can browse listings and send offers.",
     };
   }
 

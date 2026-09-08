@@ -118,11 +118,22 @@ export function buildOrderFilter(
 export async function resolveOrderParties(
   orders: IOrder[],
 ): Promise<Map<string, OrderParty>> {
-  const clerkIds = [
-    ...new Set(
-      orders.flatMap((order) => [order.farmerClerkId, order.factoryClerkId]),
-    ),
-  ];
+  return resolveTradeParties(
+    orders.flatMap((order) => [order.farmerClerkId, order.factoryClerkId]),
+  );
+}
+
+/**
+ * The same naming, keyed by clerk id rather than read off a page of orders.
+ *
+ * Analytics groups by supplier before it has any rows in hand, so it comes in
+ * this way. Duplicates are fine — they are collapsed here — which lets callers
+ * hand over an aggregate's keys without deduplicating first.
+ */
+export async function resolveTradeParties(
+  ids: string[],
+): Promise<Map<string, OrderParty>> {
+  const clerkIds = [...new Set(ids)];
 
   if (clerkIds.length === 0) return new Map();
 
